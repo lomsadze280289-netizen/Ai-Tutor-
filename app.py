@@ -3,15 +3,23 @@ from openai import OpenAI
 
 st.set_page_config(page_title="AI Tutor", page_icon="🎓")
 
-# პირდაპირ ვიღებთ გასაღებს Secrets-დან
 if "OPENAI_API_KEY" in st.secrets:
     client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-    st.title("🎓 ჩემი AI ტუტორი")
-    st.success("API გასაღები ნაპოვნია! მზად ვართ სამუშაოდ.")
+    st.title("🎓 შენი პერსონალური ტუტორი")
     
-    subject = st.selectbox("აირჩიე საგანი:", ["ისტორია", "ინგლისური", "ქართული"])
+    subject = st.selectbox("რა ვისწავლოთ დღეს?", ["ისტორია", "ინგლისური", "ქართული"])
+    
     if st.button("მიიღე დღევანდელი გამოწვევა"):
-        st.write(f"ამზადებს დავალებას {subject}-ში...")
-        # აქ დაემატება AI-ს პასუხი
+        with st.spinner("მასწავლებელი ფიქრობს..."):
+            prompt = f"შენ ხარ გამოცდილი ტუტორი. მომეცი ერთი საინტერესო მოკლე ფაქტი და ერთი კითხვა საგნიდან: {subject}. გამოიყენე მეგობრული ტონი."
+            
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            st.markdown("---")
+            st.write(response.choices[0].message.content)
+            st.balloons()
 else:
-    st.error("გთხოვთ, ჩაწეროთ OPENAI_API_KEY აპლიკაციის Secrets-ში.")
+    st.error("გთხოვთ, ჩაწეროთ OPENAI_API_KEY Secrets-ში.")
