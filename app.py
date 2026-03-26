@@ -1,28 +1,20 @@
 import streamlit as st
-from openai import OpenAI
+import os
 
 st.set_page_config(page_title="AI Tutor", page_icon="🎓")
 
-# აქ ჩასვი შენი გასაღები
-client = OpenAI(api_key="sk-proj-შენი_კოდი_აქ")
+st.title("AI Tutor Test")
 
-st.title("AI Tutor")
-
-# ვიყენებთ მხოლოდ ინგლისურს ტექნიკური ტესტისთვის
+# ამჯერად OpenAI-ს გარეშე ვტესტავთ, რომ შეცდომა გაქრეს
 subject = st.selectbox("Choose Subject:", ["History", "English", "Geography"])
 
 if st.button("Get Task"):
-    with st.spinner("Thinking..."):
-        try:
-            prompt = f"Give me one fact and one question about {subject}. Respond in English."
-            
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            st.markdown("---")
-            st.write(response.choices[0].message.content)
-            st.balloons()
-        except Exception as e:
-            st.error(f"Error: {e}")
+    st.balloons()
+    if subject == "History":
+        st.success("Fact: The Mongol Empire was the largest contiguous land empire in history.")
+        st.info("Question: Who was the founder of the Mongol Empire?")
+    elif subject == "English":
+        st.success("Fact: 'Queue' is the only word in the English language that is still pronounced the same way when the last four letters are removed.")
+        st.info("Question: Can you name three irregular verbs?")
+    else:
+        st.success("Ready! We will add more subjects soon.")
