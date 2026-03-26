@@ -1,27 +1,14 @@
 import streamlit as st
 from openai import OpenAI
-import json
 
-st.set_page_config(page_title="AI მასწავლებელი", page_icon="🎓")
+st.set_page_config(page_title="AI Tutor", page_icon="🎓")
 
-st.title("🎓 AI მასწავლებელი")
+st.title("🎓 AI მასწავლებელი (Duolingo Style)")
 
-# --- SIDEBAR ---
-st.sidebar.header("⚙️ პარამეტრები")
-
+# --- Sidebar ---
 subject = st.sidebar.selectbox(
     "საგანი",
     ["ინგლისური", "ისტორია", "ქართული"]
-)
-
-mode = st.sidebar.radio(
-    "რეჟიმი",
-    ["📖 სწავლა", "📝 ტესტი"]
-)
-
-learning_mode = st.sidebar.radio(
-    "სწავლების ტიპი",
-    ["🤖 პირდაპირ პასუხი", "🧠 ჯერ იფიქრე"]
 )
 
 api_key = st.sidebar.text_input("API Key", type="password")
@@ -32,116 +19,102 @@ if not api_key:
 
 client = OpenAI(api_key=api_key)
 
-# ------------------------
-# 📖 სწავლა
-# ------------------------
-if mode == "📖 სწავლა":
+# --- Session State ---
+if "question" not in st.session_state:
+    st.session_state.question = ""
 
-    question = st.text_area("დასვი კითხვა")
+if "score" not in st.session_state:
+    st.session_state.score = 0
 
-    if st.button("გაგზავნა"):
+if "level" not in st.session_state:
+    st.session_state.level = 1
 
-        if learning_mode == "🧠 ჯერ იფიქრე":
-            user_answer = st.text_area("შენი პასუხი")
+# --- Progress UI ---
+st.sidebar.markdown("## 📊 პროგრესი")
+st.sidebar.metric("ქულები", st.session_state.score)
+st.sidebar.metric("ლეველი", st.session_state.level)
 
-            if user_answer:
+progress_value = min(st.session_state.score / 10, 1.0)
+st.sidebar.progress(progress_value)
+
+# --- ახალი კითხვა ---
+if st.button("🎯 მომეცი კითხვა"):
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": f"შენ ხარ {subject}-ის მასწავლებელი."
+            },
+            {
+                "role": "user",
+                "content": f"""
+                მომეცი ერთი კითხვა სტუდენტის დონის მიხედვით.
+                დონე: {st.session_state.level}
+
+                არ დაწერო პასუხი.
+                """
+            }
+        ]
+    )
+
+    st.session_state.question = response.choices[0].message.content
+
+# --- კითხვა ---
+if st.session_state.question:
+    st.subheader("❓ კითხვა")
+    st.write(st.session_state.question)
+
+    user_answer = st.text_area("✍️ შენი პასუხი")
+
+    if st.button("შეამოწმე"):
+
+        if user_answer.strip() == "":
+            st.error("დაწერე პასუხი")
+        else:
+            with st.spinner("შემოწმება..."):
+
                 response = client.chat.completions.create(
                     model="gpt-4.1-mini",
                     messages=[
-                        {"role": "system", "content": f"შენ ხარ {subject}-ის მასწავლებელი"},
-                        {"role": "user", "content": f"""
-                        კითხვა: {question}
-                        მოსწავლის პასუხი: {user_answer}
+                        {
+                            "role": "system",
+                            "content": f"შენ ხარ {subject}-ის მასწავლებელი."
+                        },
+                        {
+                            "role": "user",
+                            "content": f"""
+                            კითხვა: {st.session_state.question}
+                            პასუხი: {user_answer}
 
-                        შეაფასე:
-                        - სწორია თუ არა
-                        - ახსნა
-                        - სწორი პასუხი
-                        """}
-                    ]
+                            შეაფასე:
+                            - სწორია თუ არა (YES ან NO)
+                            - დეტალური ახსნა
+                            - სწორი პასუხი
+                            """
+                        }
+                    ],
+                    temperature=0
                 )
-                st.write(response.choices[0].message.content)
 
-        else:
-            prompt = f"""
-            უპასუხე მოკლედ და გასაგებად:
+                result = response.choices[0].message.content
+                st.write(result)
 
-            1. ახსნა
-            2. მაგალითი
-            3. წესები
-            4. დასვი კითხვა
+                # --- Score logic ---
+                if "YES" in result.upper():
+                    st.success("სწორია! 🎉")
+                    st.session_state.score += 1
+                else:
+                    st.error("არასწორია ❌")
 
-            კითხვა:
-            {question}
-            """
+                # --- Level up ---
+                if st.session_state.score % 5 == 0:
+                    st.session_state.level += 1
+                    st.balloons()
+                    st.success(f"🎉 ახალი ლეველი: {st.session_state.level}")
 
-            response = client.chat.completions.create(
-                model="gpt-4.1-mini",
-                messages=[
-                    {"role": "system", "content": f"შენ ხარ {subject}-ის მასწავლებელი"},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-
-            st.write(response.choices[0].message.content)
-
-# ------------------------
-# 📝 ტესტი
-# ------------------------
-if mode == "📝 ტესტი":
-
-    num_questions = st.slider("კითხვების რაოდენობა", 1, 5, 3)
-
-    if st.button("ტესტის შექმნა"):
-
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "system", "content": f"შენ ხარ {subject}-ის მასწავლებელი"},
-                {"role": "user", "content": f"""
-                შექმენი {num_questions} კითხვა JSON ფორმატში:
-
-                [
-                  {{
-                    "question": "...",
-                    "options": ["A", "B", "C", "D"],
-                    "correct": "A",
-                    "explanation": "..."
-                  }}
-                ]
-                """}
-            ]
-        )
-
-        quiz_data = json.loads(response.choices[0].message.content)
-
-        st.session_state.quiz = quiz_data
-
-    if "quiz" in st.session_state:
-
-        answers = {}
-
-        for i, q in enumerate(st.session_state.quiz):
-            st.subheader(q["question"])
-
-            answers[i] = st.radio(
-                "აირჩიე პასუხი",
-                q["options"],
-                key=i
-            )
-
-        if st.button("შეფასება"):
-
-            score = 0
-
-            for i, q in enumerate(st.session_state.quiz):
-                if answers[i].startswith(q["correct"]):
-                    score += 1
-
-            st.success(f"შენი ქულა: {score}/{len(st.session_state.quiz)}")
-
-            for i, q in enumerate(st.session_state.quiz):
-                st.write(f"{q['question']}")
-                st.write(f"სწორი პასუხი: {q['correct']}")
-                st.write(f"ახსნა: {q['explanation']}")
-                st.write("---")
+# --- Reset ---
+if st.sidebar.button("🔄 Reset პროგრესი"):
+    st.session_state.score = 0
+    st.session_state.level = 1
