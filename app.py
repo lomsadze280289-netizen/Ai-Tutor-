@@ -1,31 +1,17 @@
 import streamlit as st
-import openai
-import pandas as pd
+from openai import OpenAI
 
-# სათაური
-st.title("🎓 ჩემი AI ტუტორი")
+st.set_page_config(page_title="AI Tutor", page_icon="🎓")
 
-# OpenAI API გასაღების შეყვანა (უსაფრთხოებისთვის)
-api_key = st.sidebar.text_input("შეიყვანეთ OpenAI API Key:", type="password")
-
-if api_key:
-    openai.api_key = api_key
+# პირდაპირ ვიღებთ გასაღებს Secrets-დან
+if "OPENAI_API_KEY" in st.secrets:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    st.title("🎓 ჩემი AI ტუტორი")
+    st.success("API გასაღები ნაპოვნია! მზად ვართ სამუშაოდ.")
     
-    # მომხმარებლის შეკითხვა
-    user_input = st.text_input("დაწერე შენი შეკითხვა აქ:")
-
-    if st.button("კითხვის დასმა"):
-        if user_input:
-            # AI-სთვის მოთხოვნის გაგზავნა
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": user_input}]
-            )
-            
-            # პასუხის გამოტანა
-            st.write("### AI-ს პასუხი:")
-            st.info(response.choices[0].message.content)
-        else:
-            st.warning("გთხოვთ, ჯერ დაწეროთ შეკითხვა.")
+    subject = st.selectbox("აირჩიე საგანი:", ["ისტორია", "ინგლისური", "ქართული"])
+    if st.button("მიიღე დღევანდელი გამოწვევა"):
+        st.write(f"ამზადებს დავალებას {subject}-ში...")
+        # აქ დაემატება AI-ს პასუხი
 else:
-    st.info("გთხოვთ, გვერდითა მენიუში შეიყვანოთ OpenAI-ს API გასაღები მუშაობის დასაწყებად.")
+    st.error("გთხოვთ, ჩაწეროთ OPENAI_API_KEY აპლიკაციის Secrets-ში.")
